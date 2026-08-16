@@ -1,0 +1,4 @@
+interface:
+  display_name: "A股交易复盘"
+  short_description: "九步完成A股赚钱效应、退潮风险、持仓与0～5只次日核心池复盘"
+  default_prompt: "使用 $a-stock-trading-review 复盘最近一个完整A股交易日，生成0～5只不凑数的次日核心池，并处理已有风险持仓。"
