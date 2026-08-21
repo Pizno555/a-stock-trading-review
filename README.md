@@ -124,19 +124,31 @@ Skill 会优先使用当前环境中可用的A股数据能力：
 
 ## 存档与隐私
 
-完整复盘默认保存到：
+存档根目录 `archive_root` 按以下优先级确定：
+
+1. 用户在本次任务中明确指定的目录；
+2. 环境变量 `REVIEW_OUTPUT_DIR`；
+3. 当前 Codex 项目根目录下的 `outputs/a-stock-trading-review`。
+
+当前项目根目录以 Codex 会话的 `cwd` 为唯一解析起点：若 `cwd` 位于 Git worktree 内，则使用 `git rev-parse --show-toplevel` 返回的 Git 顶层目录；否则直接使用 `cwd` 本身。
+
+完整复盘保存为：
 
 ```text
-E:\Project\codex\A股\outputs\a-stock-trading-review\YYYY-MM-DD\review-HHmmss.md
+<archive_root>/YYYY-MM-DD/review-HHmmss.md
 ```
 
 盘前更新保存为：
 
 ```text
-E:\Project\codex\A股\outputs\a-stock-trading-review\YYYY-MM-DD\premarket-HHmmss.md
+<archive_root>/YYYY-MM-DD/premarket-HHmmss.md
 ```
 
-可以通过环境变量 `REVIEW_OUTPUT_DIR` 修改输出根目录。明确说“不保存”时只输出结果，不创建存档。
+无论本次是否写入，都会先按上述规则解析 `archive_root`，用于查找上一份完整复盘。用户明确说“不保存”或“不要落盘”时，仅关闭本次写入：仍可读取同一 `archive_root` 中的历史复盘，但不为本次结果创建目录或文件。
+
+选定的目录不存在时可以自动创建；若目录不可创建或不可写，不会静默切换到其他目录，而是只输出结果并说明原目标路径和失败原因。
+
+如果希望不同 Codex 项目持续使用同一份复盘历史，建议把 `REVIEW_OUTPUT_DIR` 设置为统一存档目录。该环境变量本身就是最终 `archive_root`，不会再拼接 `outputs/a-stock-trading-review`。
 
 默认存档会脱敏，不记录账户身份、资金总额、持仓数量、精确成本、精确成交价和精确浮盈亏比例。
 

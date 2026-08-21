@@ -228,27 +228,81 @@
 
 ## 4. 存档路径与检索
 
-输出根目录优先读取环境变量`REVIEW_OUTPUT_DIR`；未设置时使用：
+`archive_root` 表示本次运行最终选定的 `a-stock-trading-review` 存档根目录。完整复盘、盘前更新和历史完整复盘检索必须始终使用同一个 `archive_root`。
+
+### 4.1 archive_root 与写入开关
+
+`archive_root` 始终按第 4.2～4.3 节解析，供历史完整复盘读取和本次存档目标共同使用。读取历史与写入本次结果是两个独立行为，不得用同一个模糊开关同时禁用。
+
+用户明确说“不保存”“不要保存”“不要落盘”“只输出”或“不要创建文件”时，仅设置 `archive_write_enabled = false`。此规则高于用户曾配置的目录、`REVIEW_OUTPUT_DIR` 和项目 fallback 的写入行为：不创建本次存档目录或文件，但仍解析 `archive_root`；任务需要验证昨日计划时，仍可从该 `archive_root` 读取历史完整复盘。无论是否写入，仍须生成内容并运行 validator 检查。
+
+其他情况下设置 `archive_write_enabled = true`。只有该值为 true 时，才允许按第 4.4～4.5 节创建目录并写入本次结果。
+
+### 4.2 archive_root 解析优先级
+
+严格按以下顺序选择且只选择一个 `archive_root`：
+
+1. 用户在本次任务中明确指定的存档目录；
+2. 本次未指定目录且环境变量 `REVIEW_OUTPUT_DIR` 已设置时，使用该环境变量的值；
+3. 以上两项均不存在时，使用 `<project_root>/outputs/a-stock-trading-review`。
+
+用户本次明确指定的目录不得被环境变量覆盖。`REVIEW_OUTPUT_DIR` 本身就是最终 `archive_root`，不得再次拼接 `outputs/a-stock-trading-review`。
+
+### 4.3 project_root 的确定性解析
+
+`project_root` 只能从当前 Codex 会话的 `cwd` 开始解析：
+
+1. 在 `cwd` 下执行 `git rev-parse --show-toplevel`；
+2. 命令成功时，以返回的 Git worktree 顶层目录作为 `project_root`；
+3. 命令失败时，直接以 `cwd` 作为 `project_root`，不得继续向父目录猜测或搜索其他 `.git`。
+
+不得根据 Skill 安装位置、`~/.codex/skills/`、附件目录、临时目录、被读取文件的位置、参考资料位置、README 位置、其他已打开项目或开发者原有目录猜测 `project_root`。多项目、monorepo 和多 worktree 场景仍只执行 `cwd → git rev-parse --show-toplevel → project_root`，不得用“看起来最相关的项目”替代该规则。
+
+未设置 `REVIEW_OUTPUT_DIR` 时，不同 `project_root` 默认拥有相互独立的复盘历史；不得跨项目搜索。需要跨项目共享长期历史时，由用户设置统一的 `REVIEW_OUTPUT_DIR`。
+
+### 4.4 创建、写入失败与禁止降级
+
+当 `archive_write_enabled = true` 时，最终选定的 `archive_root` 不存在则允许创建该目录及其交易日子目录；当 `archive_write_enabled = false` 时不得为本次任务创建目录。路径优先级只负责选择；一旦命中某一级，目录创建失败、权限不足、只读、sandbox 禁止或其他文件系统错误时，不得退回下一优先级，也不得偷偷改存到其他目录。
+
+写入失败时：
+
+1. 保留并报告原目标路径；
+2. 不创建存档；
+3. 正常输出复盘结果；
+4. 明确说明本次未存档及具体失败原因。
+
+### 4.5 文件路径与覆盖规则
+
+完整复盘保存为：
 
 ```text
-E:\Project\codex\A股\outputs\a-stock-trading-review
+<archive_root>/YYYY-MM-DD/review-HHmmss.md
 ```
 
-完整复盘：
+盘前更新保存为：
 
 ```text
-YYYY-MM-DD/review-HHmmss.md
+<archive_root>/YYYY-MM-DD/premarket-HHmmss.md
 ```
 
-盘前更新：
+`YYYY-MM-DD` 是复盘或盘前计划对应的交易日，`HHmmss` 是实际生成时间。不得覆盖已有文件；若目标文件已存在，优先重新取得当前时间，仍冲突时依次增加安全后缀：
 
 ```text
-YYYY-MM-DD/premarket-HHmmss.md
+review-HHmmss-01.md
+review-HHmmss-02.md
+premarket-HHmmss-01.md
+premarket-HHmmss-02.md
 ```
 
-不覆盖旧文件。查找昨日计划时，根据已确认的交易日向前查找最近一个含`review-*.md`的日期目录，并读取按文件名排序最新的一份完整复盘；不得把盘前文件当成昨日完整复盘。
+### 4.6 历史完整复盘检索
 
-用户明确说“不保存、不要落盘”时不创建文件。测试时设置临时`REVIEW_OUTPUT_DIR`，不得污染真实历史。
+查找上一份完整复盘时，只能在本次最终解析得到的 `archive_root` 内检索。不得回退到旧路径、搜索 Skill 安装目录、整个磁盘、其他项目的 `outputs`，也不得自动合并多个存档根目录。
+
+根据已经确认的目标交易日，向前查找最近一个含 `review-*.md` 的实际交易日目录；同一天存在多个完整复盘时，读取按文件名排序最新的一份。只匹配 `review-*.md`，不得把 `premarket-*.md` 当作完整复盘。
+
+### 4.7 测试与隐私
+
+测试时必须使用临时目录或临时设置 `REVIEW_OUTPUT_DIR`，不得向用户真实存档目录写入测试文件；测试结束后清理测试数据。所有正式存档继续执行本文件第 6 节的脱敏规则。
 
 ## 5. Frontmatter
 
