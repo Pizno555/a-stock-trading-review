@@ -279,6 +279,8 @@ def validate(text: str) -> list[str]:
                 errors.append(f"第{index}步出现MA、RSI9或BIAS20；技术指标只能出现在第9步")
 
         step2 = blocks[1]
+        if "当日驱动" not in step2:
+            errors.append("第2步缺少字段：当日驱动")
         for dimension in ("宽度", "核心强度", "持续性", "成交承载", "扩散"):
             if dimension not in step2:
                 errors.append(f"第2步缺少赚钱效应维度：{dimension}")
@@ -291,7 +293,7 @@ def validate(text: str) -> list[str]:
         if len(step2_rows) > 5:
             errors.append(f"第2步赚钱方向有{len(step2_rows)}个，超过5个上限")
         for row in step2_rows:
-            if len(row) < 8:
+            if len(row) < 9:
                 errors.append(f"第2步方向行列数不足：{' | '.join(row)}")
                 continue
             direction_id = row[0].upper()
