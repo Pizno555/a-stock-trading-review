@@ -9,6 +9,8 @@ description: 对A股进行证据化的盘后九步复盘与盘前轻量更新，
 
 把每日任务收敛为“昨日计划 → 今日验证 → 今日复盘 → 明日计划”。允许主线为0、交易核心池为0；没有高质量机会时明确选择观察或防守。只输出条件化候选和触发规则，不承诺涨跌，不自动交易。
 
+需要纯行情或财务数据时复用 `a-stock-data` 或 `mx-data`；需要核验订单、客户、技术、公告或产业事实时复用 `a-stock-evidence-research`；需要完整公司、估值或同行分析时转交 `a-stock-investment-analysis`。本 Skill 只负责把可靠输入整合成复盘与次日计划。
+
 ## 选择模式
 
 - **盘后完整复盘**：读取 [复盘规则](references/review-rules.md)、[数据路由](references/data-routing.md) 和 [输出与存档](references/output-and-archive.md)，完整执行九步。
